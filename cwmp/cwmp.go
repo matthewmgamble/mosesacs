@@ -258,7 +258,7 @@ func Inform(serial string) string {
 	<soap:Body><cwmp:Inform><DeviceId><Manufacturer>ADB Broadband</Manufacturer>
 <OUI>0013C8</OUI>
 <ProductClass>VV5522</ProductClass>
-<SerialNumber>PI234550701S199991-` + serial + `</SerialNumber>
+<SerialNumber>` + serial + `</SerialNumber>
 </DeviceId>
 <Event soap-enc:arrayType="cwmp:EventStruct[1]">
 <EventStruct><EventCode>6 CONNECTION REQUEST</EventCode>
@@ -270,7 +270,7 @@ func Inform(serial string) string {
 <RetryCount>0</RetryCount>
 <ParameterList soap-enc:arrayType="cwmp:ParameterValueStruct[8]">
 <ParameterValueStruct><Name>InternetGatewayDevice.ManagementServer.ConnectionRequestURL</Name>
-<Value xsi:type="xsd:string">http://localhost:7547/ConnectionRequest-` + serial + `</Value>
+<Value xsi:type="xsd:string">http://104.199.175.27:7547/ConnectionRequest-` + serial + `</Value>
 </ParameterValueStruct>
 <ParameterValueStruct><Name>InternetGatewayDevice.ManagementServer.ParameterKey</Name>
 <Value xsi:type="xsd:string"></Value>
@@ -285,7 +285,7 @@ func Inform(serial string) string {
 <Value xsi:type="xsd:string">ABCD</Value>
 </ParameterValueStruct>
 <ParameterValueStruct><Name>InternetGatewayDevice.DeviceInfo.SoftwareVersion</Name>
-<Value xsi:type="xsd:string">E_8.0.0.0002</Value>
+<Value xsi:type="xsd:string">4.0.8.17785</Value>
 </ParameterValueStruct>
 <ParameterValueStruct><Name>InternetGatewayDevice.DeviceInfo.SpecVersion</Name>
 <Value xsi:type="xsd:string">1.0</Value>
