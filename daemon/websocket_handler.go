@@ -31,15 +31,14 @@ func websocketHandler(ws *websocket.Conn) {
 			break
 		}
 
-		data := make(map[string]string)
+		data := make(map[string]interface{})
 		err = json.Unmarshal(msg.Data, &data)
 
 		if err != nil {
 			fmt.Println("error:", err)
 		}
 
-		m := data["command"]
-		fmt.Println(m)
+		m := data["command"].(string)
 
 		if m == "list" {
 
@@ -66,7 +65,145 @@ func websocketHandler(ws *websocket.Conn) {
 			}
 
 			client.Send(response)
+		} else if strings.Contains(m, "setxmpp") {
+			i := strings.Split(m, " ")
+			if _, exists := cpes[i[1]]; exists {
+				c := cpes[i[1]]
+				c.XmppId = i[2]
+				if len(i) == 5 {
+					c.XmppUsername = i[3]
+					c.XmppPassword = i[4]
+				}
+				cpes[i[1]] = c
+			} else {
+				fmt.Println(fmt.Sprintf("CPE with serial %s not found", i[1]))
+			}
+		} else if strings.Contains(m, "changeDuState") {
+			i := strings.Split(m, " ")
 
+			ops := data["ops"].([]interface{})
+
+			var operations []fmt.Stringer
+			for _, obj := range ops {
+				op := obj.(map[string]interface{})
+				fmt.Println(op)
+				type_cmd := op["type"].(string)
+				if type_cmd == "install" {
+					install_op := &cwmp.InstallOpStruct{Url: op["url"].(string), Uuid: op["uuid"].(string), Username: op["username"].(string), Password: op["password"].(string), ExecutionEnvironment: op["environment"].(string)}
+					operations = append(operations, install_op)
+				} else if type_cmd == "update" {
+					update_op := &cwmp.UpdateOpStruct{Url: op["url"].(string), Uuid: op["uuid"].(string), Username: op["username"].(string), Password: op["password"].(string), Version: op["version"].(string)}
+					operations = append(operations, update_op)
+				} else if type_cmd == "uninstall" {
+					uninstall_op := &cwmp.UninstallOpStruct{Version: op["version"].(string), Uuid: op["uuid"].(string), ExecutionEnvironment: op["environment"].(string)}
+					operations = append(operations, uninstall_op)
+				}
+ 			}
+
+			req := Request{i[1], ws, cwmp.ChangeDuState(operations), func(msg *WsSendMessage) error {
+				if err := websocket.JSON.Send(ws, msg); err != nil {
+					fmt.Println("error while sending back answer:", err)
+				}
+
+				return err
+			}}
+
+			if _, exists := cpes[i[1]]; exists {
+				cpes[i[1]].Queue.Enqueue(req)
+				if cpes[i[1]].State != "Connected" {
+					// issue a connection request
+					go doConnectionRequest(i[1])
+				}
+			} else {
+				if err := websocket.JSON.Send(ws, map[string]string{"status": "error", "reason": fmt.Sprintf("CPE with serial %s not found", i[1])}); err != nil {
+					fmt.Println("error while sending back answer:", err)
+				}
+				fmt.Println(fmt.Sprintf("CPE with serial %s not found", i[1]))
+			}
+		} else if m == "download" {
+			CpeSerial := data["serial"].(string)
+
+			req := Request{CpeSerial, ws, cwmp.Download(data["filetype"].(string), data["url"].(string),data["username"].(string),data["password"].(string),data["filesize"].(string)), func(msg *WsSendMessage) error {
+				if err := websocket.JSON.Send(ws, msg); err != nil {
+					fmt.Println("error while sending back answer:", err)
+				}
+
+				return err
+			}}
+
+			if _, exists := cpes[CpeSerial]; exists {
+				cpes[CpeSerial].Queue.Enqueue(req)
+				if cpes[CpeSerial].State != "Connected" {
+					// issue a connection request
+					go doConnectionRequest(CpeSerial)
+				}
+			} else {
+				if err := websocket.JSON.Send(ws, map[string]string{"status": "error", "reason": fmt.Sprintf("CPE with serial %s not found", CpeSerial)}); err != nil {
+					fmt.Println("error while sending back answer:", err)
+				}
+				fmt.Println(fmt.Sprintf("CPE with serial %s not found", CpeSerial))
+			}
+		} else if strings.Contains(m, "canceltransfer") {
+			CpeSerial := data["serial"].(string)
+
+			req := Request{CpeSerial, ws, cwmp.CancelTransfer(), func(msg *WsSendMessage) error {
+				if err := websocket.JSON.Send(ws, msg); err != nil {
+					fmt.Println("error while sending back answer:", err)
+				}
+
+				return err
+			}}
+
+			if _, exists := cpes[CpeSerial]; exists {
+				cpes[CpeSerial].Queue.Enqueue(req)
+				if cpes[CpeSerial].State != "Connected" {
+					// issue a connection request
+					go doConnectionRequest(CpeSerial)
+				}
+			} else {
+				if err := websocket.JSON.Send(ws, map[string]string{"status": "error", "reason": fmt.Sprintf("CPE with serial %s not found", CpeSerial)}); err != nil {
+					fmt.Println("error while sending back answer:", err)
+				}
+				fmt.Println(fmt.Sprintf("CPE with serial %s not found", CpeSerial))
+			}
+
+		} else if strings.Contains(m, "scheduledownload") {
+			CpeSerial := data["serial"].(string)
+
+			w := data["windows"].([]interface{})
+			var windows []fmt.Stringer
+			for _,obj := range w {
+				i := obj.(map[string]interface{})
+				wdw := &cwmp.TimeWindowStruct{
+					WindowStart: i["windowstart"].(string),
+					WindowEnd: i["windowend"].(string),
+					WindowMode: i["windowmode"].(string),
+					UserMessage: i["usermessage"].(string),
+					MaxRetries: i["maxretries"].(string),
+				}
+				windows = append(windows, wdw)
+			}
+
+			req := Request{CpeSerial, ws, cwmp.ScheduleDownload(data["filetype"].(string), data["url"].(string),data["username"].(string),data["password"].(string),data["filesize"].(string), windows), func(msg *WsSendMessage) error {
+				if err := websocket.JSON.Send(ws, msg); err != nil {
+					fmt.Println("error while sending back answer:", err)
+				}
+
+				return err
+			}}
+
+			if _, exists := cpes[CpeSerial]; exists {
+				cpes[CpeSerial].Queue.Enqueue(req)
+				if cpes[CpeSerial].State != "Connected" {
+					// issue a connection request
+					go doConnectionRequest(CpeSerial)
+				}
+			} else {
+				if err := websocket.JSON.Send(ws, map[string]string{"status": "error", "reason": fmt.Sprintf("CPE with serial %s not found", CpeSerial)}); err != nil {
+					fmt.Println("error while sending back answer:", err)
+				}
+				fmt.Println(fmt.Sprintf("CPE with serial %s not found", CpeSerial))
+			}
 		} else if strings.Contains(m, "readMib") {
 			i := strings.Split(m, " ")
 			//			cpeSerial, _ := strconv.Atoi(i[1])
@@ -130,8 +267,8 @@ func websocketHandler(ws *websocket.Conn) {
 				fmt.Println(fmt.Sprintf("CPE with serial %s not found", i[1]))
 			}
 		} else if m == "GetParameterValues" {
-			cpe := data["cpe"]
-			req := Request{cpe, ws, cwmp.GetParameterValues(data["object"]), func(msg *WsSendMessage) error {
+			cpe := data["cpe"].(string)
+			req := Request{cpe, ws, cwmp.GetParameterValues(data["object"].(string)), func(msg *WsSendMessage) error {
 				if err := websocket.JSON.Send(ws, msg); err != nil {
 					fmt.Println("error while sending back answer:", err)
 				}
@@ -148,11 +285,11 @@ func websocketHandler(ws *websocket.Conn) {
 				fmt.Println(fmt.Sprintf("CPE with serial %s not found", cpe))
 			}
 		} else if m == "GetSummary" {
-			cpe := data["cpe"]
+			cpe := data["cpe"].(string)
 			ch := make(chan *WsSendMessage)
 
 			// GetParameterNames per leggere la mib velocemente
-			req := Request{cpe, ws, cwmp.GetParameterNames(data["object"], 0), func(msg *WsSendMessage) error {
+			req := Request{cpe, ws, cwmp.GetParameterNames(data["object"].(string), 0), func(msg *WsSendMessage) error {
 				fmt.Println("sono nella callback della GetParameterNames")
 				ch <- msg
 				return nil
@@ -236,9 +373,9 @@ func websocketHandler(ws *websocket.Conn) {
 				fmt.Println(fmt.Sprintf("CPE with serial %s not found", cpe))
 			}
 
-			fmt.Println("sono sospeso in attesa che ritorni il messaggio")
+			fmt.Println("i'm waiting for the message to be back")
 			m = <-ch
-			fmt.Println("è tornato")
+			fmt.Println("it's back")
 
 			// qui devo parsare la response e creare il summary "semplice" da visualizzare
 			getParameterValues := new(cwmp.GetParameterValuesResponse)
@@ -280,8 +417,8 @@ func websocketHandler(ws *websocket.Conn) {
 			}
 
 		} else if m == "getMib" {
-			cpe := data["cpe"]
-			req := Request{cpe, ws, cwmp.GetParameterNames(data["object"], 1), func(msg *WsSendMessage) error {
+			cpe := data["cpe"].(string)
+			req := Request{cpe, ws, cwmp.GetParameterNames(data["object"].(string), 1), func(msg *WsSendMessage) error {
 				fmt.Println("sono nella callback")
 				if err := websocket.JSON.Send(ws, msg); err != nil {
 					fmt.Println("error while sending back answer:", err)
@@ -320,7 +457,7 @@ func periodicWsChecker(c *Client, quit chan bool) {
 	for {
 		select {
 		case <-ticker.C:
-			fmt.Println("new tick on client:", c)
+//			fmt.Println("new tick on client:", c)
 			c.Send("ping")
 		case <-quit:
 			fmt.Println("received quit command for periodicWsChecker")

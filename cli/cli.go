@@ -38,7 +38,7 @@ func Run(url string) {
 		}
 	}()
 
-	baseCmds := []string{"exit", "help", "version", "list", "status", "shutdown", "uptime", "readMib", "writeMib", "GetParameterNames"}
+	baseCmds := []string{"exit", "setxmpp", "help", "version", "list", "status", "shutdown", "uptime", "readMib", "writeMib", "GetParameterNames", "set"}
 	contextCmds := []string{"summary"}
 
 	line.SetCompleter(func(line string) (c []string) {
@@ -146,7 +146,11 @@ func receiver() {
 			}
 
 			//			fmt.Printf("%+v",log["prova"])
-			line.PrintAbovePrompt(fmt.Sprintf("%s", log["log"]))
+			if log["log"] == "ping" {
+				// received ping from daemon
+			} else {
+				line.PrintAbovePrompt(fmt.Sprintf("%s", log["log"]))
+			}
 
 		}
 
@@ -208,12 +212,16 @@ func processCommand(cmd string) {
 		client.Write(cmd)
 	case strings.Contains(cmd, "writeMib"):
 		client.Write(cmd)
+//	case strings.Contains(cmd, "changeDuState"):
+//		client.Write(cmd)
 	case strings.Contains(cmd, "GetParameterNames"):
 		client.Write(cmd)
 	case strings.Contains(cmd, "list"):
 		client.Write("list")
 	case strings.Contains(cmd, "status"):
 		client.Write("status")
+	case strings.Contains(cmd, "setxmpp"):
+		client.Write(cmd)
 	default:
 		fmt.Println("Unknown command")
 	}

@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/xml"
 	"fmt"
-	"github.com/mxk/go-sqlite/sqlite3"
+//	"github.com/mxk/go-sqlite/sqlite3"
 	"strconv"
 	"strings"
 	"time"
@@ -251,6 +251,158 @@ func FactoryReset() string {
 </soap:Envelope>`
 }
 
+func Download(filetype, url, username, password, filesize string) string {
+	// 3 Vendor Configuration File
+	// 1 Firmware Upgrade Image
+
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:cwmp="urn:dslforum-org:cwmp-1-0" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:schemaLocation="urn:dslforum-org:cwmp-1-0 ..\schemas\wt121.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <soap:Header/>
+  <soap:Body soap:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+    <cwmp:Download>
+      <CommandKey>MSDWK</CommandKey>
+      <FileType>`+filetype+`</FileType>
+      <URL>`+url+`</URL>
+      <Username>`+username+`</Username>
+      <Password>`+password+`</Password>
+      <FileSize>`+filesize+`</FileSize>
+      <TargetFileName></TargetFileName>
+      <DelaySeconds>0</DelaySeconds>
+      <SuccessURL></SuccessURL>
+      <FailureURL></FailureURL>
+    </cwmp:Download>
+  </soap:Body>
+</soap:Envelope>`
+}
+
+func CancelTransfer() string {
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:cwmp="urn:dslforum-org:cwmp-1-0" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:schemaLocation="urn:dslforum-org:cwmp-1-0 ..\schemas\wt121.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <soap:Header/>
+  <soap:Body soap:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+    <cwmp:CancelTransfer>
+      <CommandKey></CommandKey>
+    <cwmp:CancelTransfer/>
+  </soap:Body>
+</soap:Envelope>`
+}
+
+type TimeWindowStruct struct {
+	WindowStart string
+	WindowEnd string
+	WindowMode string
+	UserMessage string
+	MaxRetries string
+}
+
+func (window *TimeWindowStruct) String() string{
+	return `<TimeWindowStruct>
+<WindowStart>`+window.WindowStart+`</WindowStart>
+<WindowEnd>`+window.WindowEnd+`</WindowEnd>
+<WindowMode>`+window.WindowMode+`</WindowMode>
+<UserMessage>`+window.UserMessage+`</UserMessage>
+<MaxRetries>`+window.MaxRetries+`</MaxRetries>
+</TimeWindowStruct>`
+}
+
+func ScheduleDownload(filetype, url, username, password, filesize string, windowslist []fmt.Stringer) string {
+	ret := `<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:cwmp="urn:dslforum-org:cwmp-1-0" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:schemaLocation="urn:dslforum-org:cwmp-1-0 ..\schemas\wt121.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <soap:Header/>
+  <soap:Body soap:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+    <cwmp:ScheduleDownload>
+      <CommandKey>MSDWK</CommandKey>
+      <FileType>`+filetype+`</FileType>
+      <URL>`+url+`</URL>
+      <Username>`+username+`</Username>
+      <Password>`+password+`</Password>
+      <FileSize>`+filesize+`</FileSize>
+      <TargetFileName></TargetFileName>
+      <TimeWindowList>`
+
+		for _,op := range windowslist {
+			ret += op.String()
+		}
+
+		ret += `</TimeWindowList>
+    </cwmp:ScheduleDownload>
+  </soap:Body>
+</soap:Envelope>`
+
+	return ret
+}
+
+type InstallOpStruct struct {
+	Url string
+	Uuid string
+	Username string
+	Password string
+	ExecutionEnvironment string
+}
+
+func (op *InstallOpStruct) String() string {
+	return `<InstallOpStruct>
+	<URL>`+op.Url+`</URL>
+	<UUID>`+op.Uuid+`</UUID>
+	<Username>`+op.Username+`</Username>
+	<Password>`+op.Password+`</Password>
+	<ExecutionEnvRef>`+op.ExecutionEnvironment+`</ExecutionEnvRef>
+</InstallOpStruct>`
+}
+
+type UpdateOpStruct struct {
+	Uuid string
+	Version string
+	Url string
+	Username string
+	Password string
+}
+
+func (op *UpdateOpStruct) String() string {
+	return `<UpdateOpStruct>
+<UUID>`+op.Uuid+`</UUID>
+<Version>`+op.Version+`</Version>
+<URL>`+op.Url+`</URL>
+<Username>`+op.Username+`</Username>
+<Password>`+op.Password+`</Password>
+</UpdateOpStruct>`
+}
+
+type UninstallOpStruct struct {
+	Uuid string
+	Version string
+	ExecutionEnvironment string
+}
+
+func (op *UninstallOpStruct) String() string {
+	return `<UninstallOpStruct>
+<UUID>`+op.Uuid+`</UUID>
+<Version>`+op.Version+`</Version>
+<ExecutionEnvRef>`+op.ExecutionEnvironment+`</ExecutionEnvRef>
+</UninstallOpStruct>`
+}
+
+func ChangeDuState(ops []fmt.Stringer) string {
+	ret := `<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:cwmp="urn:dslforum-org:cwmp-1-0" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:schemaLocation="urn:dslforum-org:cwmp-1-0 ..\schemas\wt121.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<soap:Header/>
+<soap:Body soap:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+<cmwp:ChangeDUState>
+<Operations>`
+
+		for _,op := range ops {
+			ret += op.String()
+		}
+
+		ret += `</Operations>
+<CommandKey></CommandKey>
+</cmwp:ChangeDUState>
+</soap:Body>
+</soap:Envelope>`
+
+	return ret
+}
+
 // CPE side
 
 func Inform(serial string) string {
@@ -298,6 +450,7 @@ func Inform(serial string) string {
 </soap:Body></soap:Envelope>`
 }
 
+/*
 func BuildGetParameterValuesResponse(serial string, leaves GetParameterValues_) string {
 	ret := `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap-enc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:cwmp="urn:dslforum-org:cwmp-1-0">
 	<soap:Header><cwmp:ID soap:mustUnderstand="1">3</cwmp:ID></soap:Header>
@@ -386,3 +539,4 @@ func BuildGetParameterNamesResponse(serial string, leaves GetParameterNames_) st
 
 	return ret
 }
+*/

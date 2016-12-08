@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/lucacervasio/mosesacs/cwmp"
 	"github.com/lucacervasio/mosesacs/www"
+	"github.com/lucacervasio/mosesacs/xmpp"
 	"github.com/oleiade/lane"
 	"golang.org/x/net/websocket"
 	"io/ioutil"
@@ -15,9 +16,10 @@ import (
 	"time"
 )
 
-const Version = "0.2.0"
+const Version = "0.2.6"
 
 var logger MosesWriter
+var xmppGlobalUser string
 
 type MosesWriter interface {
 	Logger(string)
@@ -42,6 +44,9 @@ type CPE struct {
 	Manufacturer         string
 	OUI                  string
 	ConnectionRequestURL string
+	XmppId               string
+	XmppUsername         string
+	XmppPassword         string
 	SoftwareVersion      string
 	ExternalIPAddress    string
 	State                string
@@ -136,7 +141,7 @@ func CwmpHandler(w http.ResponseWriter, r *http.Request) {
 
 		log.Printf("Received an Inform from %s (%d bytes) with SerialNumber %s and EventCodes %s", addr, len, Inform.DeviceId.SerialNumber, Inform.GetEvents())
 		log.Printf("Soap envelope has mustUnderstand %s\n", envelope.Header.Id)
-		logger.Logger("ciao")
+//		logger.Logger("ciao")
 		sendAll(fmt.Sprintf("Received an Inform from %s (%d bytes) with SerialNumber %s and EventCodes %s", addr, len, Inform.DeviceId.SerialNumber, Inform.GetEvents()))
 
 		expiration := time.Now().AddDate(0, 0, 1) // expires in 1 day
@@ -223,8 +228,13 @@ func CwmpHandler(w http.ResponseWriter, r *http.Request) {
 
 func doConnectionRequest(SerialNumber string) {
 	fmt.Println("issuing a connection request to CPE", SerialNumber)
-	//	http.Get(cpes[SerialNumber].ConnectionRequestURL)
-	Auth("user", "pass", cpes[SerialNumber].ConnectionRequestURL)
+	if cpes[SerialNumber].XmppId != "" {
+		fmt.Println("cr via xmpp")
+		xmpp.SendConnectionRequest(cpes[SerialNumber].XmppId, cpes[SerialNumber].XmppUsername, cpes[SerialNumber].XmppPassword, xmppGlobalUser)
+	} else {
+		fmt.Println("cr via http")
+		Auth("user", "pass", cpes[SerialNumber].ConnectionRequestURL)
+	}
 }
 
 func staticPage(w http.ResponseWriter, r *http.Request) {
@@ -235,7 +245,8 @@ func fontsPage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "./www"+r.URL.Path)
 }
 
-func Run(port *int, logObj MosesWriter) {
+func Run(port *int, logObj MosesWriter, xmppUser, xmppPass string) {
+	xmppGlobalUser = xmppUser
 	logger = logObj
 	cpes = make(map[string]CPE)
 	sessions = make(map[string]*CPE)
@@ -250,6 +261,14 @@ func Run(port *int, logObj MosesWriter) {
 	fmt.Printf("WEB Handler installed at http://0.0.0.0:%d/www\n", *port)
 	http.HandleFunc("/www", staticPage)
 	http.HandleFunc("/fonts/", fontsPage)
+
+	if xmppUser != "" {
+		// starting xmpp client
+		xmpp.StartClient(xmppUser, xmppPass, func(str string) {
+			log.Println(str)
+		})
+		defer xmpp.Close()
+	}
 
 	err := http.ListenAndServe(fmt.Sprintf(":%d", *port), nil)
 	if err != nil {
