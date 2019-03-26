@@ -2,7 +2,7 @@ package main
 
 import (
   "fmt"
-  "github.com/lucacervasio/mosesacs/client"
+  "github.com/matthewmgamble/mosesacs/client"
 )
 
 func main() {

@@ -1,7 +1,7 @@
 package main
 
 import (
-  "github.com/lucacervasio/mosesacs/xmpp"
+  "github.com/matthewmgamble/mosesacs/xmpp"
   "time"
   "log"
 )

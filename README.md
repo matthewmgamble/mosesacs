@@ -1,4 +1,4 @@
-# Moses ACS [![Build Status](https://travis-ci.org/lucacervasio/mosesacs.svg?branch=master)](https://travis-ci.org/lucacervasio/mosesacs)
+# Moses ACS
 
 An ACS in Go for provisioning CPEs, suitable for test purposes or production deployment.
 
@@ -6,7 +6,7 @@ An ACS in Go for provisioning CPEs, suitable for test purposes or production dep
 
 Install the package:
 
-    go get github.com/lucacervasio/mosesacs
+    go get github.com/matthewmgamble/mosesacs
 
 Run daemon:
 

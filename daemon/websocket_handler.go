@@ -3,7 +3,7 @@ package daemon
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/lucacervasio/mosesacs/cwmp"
+	"github.com/matthewmgamble/mosesacs/cwmp"
 	"golang.org/x/net/websocket"
 	"regexp"
 	"strconv"

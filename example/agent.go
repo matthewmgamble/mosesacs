@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/lucacervasio/mosesacs/client"
+	"github.com/matthewmgamble/mosesacs/client"
 	"strconv"
 )
 
